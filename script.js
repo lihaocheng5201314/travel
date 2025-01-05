@@ -23,25 +23,6 @@ async function searchWeather() {
         const weatherInfo = await getWeatherInfo(city);
         if (weatherInfo) {
             const tempDesc = getTemperatureDescription(weatherInfo.temperature);
-            
-            // 创建温度显示元素
-            const tempDisplay = document.createElement('div');
-            tempDisplay.className = 'temperature-display';
-            tempDisplay.innerHTML = `
-                <span class="temp-number">温度 ${weatherInfo.temperature || '-'}度</span>
-                <span class="temp-desc">${tempDesc}</span>
-            `;
-            
-            // 移除已存在的温度显示
-            const existingTempDisplay = document.querySelector('.temperature-display');
-            if (existingTempDisplay) {
-                existingTempDisplay.remove();
-            }
-            
-            // 添加新的温度显示到页面
-            document.body.appendChild(tempDisplay);
-            
-            // 更新天气信息显示
             weatherResultDiv.innerHTML = `
                 <div class="weather-info">
                     <div class="weather-info-header">
@@ -52,6 +33,10 @@ async function searchWeather() {
                             <div class="weather-info-time">
                                 发布时间：${weatherInfo.reporttime || '-'}
                             </div>
+                        </div>
+                        <div class="weather-info-temperature">
+                            <div class="temp-number">温度 ${weatherInfo.temperature || '-'}度</div>
+                            <div class="temp-desc">${tempDesc}</div>
                         </div>
                     </div>
                     <div class="weather-info-main">
@@ -146,7 +131,7 @@ function getWeatherInfo(city) {
             const apiUrl = new URL('https://restapi.amap.com/v3/weather/weatherInfo');
             const params = {
                 city: city,
-                key: 'bfe1a5bae6afc492a1bfedbbc2dc7eaa',
+                key: '20132592a174cc0c1c32a8202936a0c5',
                 extensions: 'base'
             };
             
@@ -264,7 +249,7 @@ async function searchRestaurants(page = 1) {
                 city: 'beijing',
                 offset: 50,
                 page: currentPage,
-                key: 'bfe1a5bae6afc492a1bfedbbc2dc7eaa',
+                key: '20132592a174cc0c1c32a8202936a0c5',
                 extensions: 'all',
                 types: locationType
             };
