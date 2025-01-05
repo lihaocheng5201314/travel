@@ -131,7 +131,7 @@ function getWeatherInfo(city) {
             const apiUrl = new URL('https://restapi.amap.com/v3/weather/weatherInfo');
             const params = {
                 city: city,
-                key: '20132592a174cc0c1c32a8202936a0c5',
+                key: '56b3fdd0d5f18689db37ec9630c9d40f',
                 extensions: 'base'
             };
             
@@ -214,7 +214,7 @@ async function searchRestaurants(page = 1) {
     if (locationType === 'custom') {
         locationType = customTypeInput.value.trim();
     }
-    
+
     if (!location) {
         alert('请输入地区');
         if (searchButton) {
@@ -237,75 +237,85 @@ async function searchRestaurants(page = 1) {
     resultsDiv.innerHTML = '<div class="loading">正在搜索...</div>';
 
     try {
-        // 使用递归函数获取所有结果
-        let allResults = [];
-        let currentPage = 1;
-        let hasMoreResults = true;
+        const apiUrl = new URL('https://restapi.amap.com/v3/place/text');
+        const params = {
+            keywords: location,
+            city: 'beijing',
+            offset: 50,
+            page: page,
+            key: '56b3fdd0d5f18689db37ec9630c9d40f',
+            extensions: 'all',
+            types: locationType
+        };
+        
+        Object.keys(params).forEach(key => 
+            apiUrl.searchParams.append(key, params[key])
+        );
 
-        while (hasMoreResults) {
-            const apiUrl = new URL('https://restapi.amap.com/v3/place/text');
-            const params = {
-                keywords: location,
-                city: 'beijing',
-                offset: 50,
-                page: currentPage,
-                key: '20132592a174cc0c1c32a8202936a0c5',
-                extensions: 'all',
-                types: locationType
-            };
-            
-            Object.keys(params).forEach(key => 
-                apiUrl.searchParams.append(key, params[key])
-            );
+        console.log('发送搜索请求:', apiUrl.toString());
 
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-
-            if (data.status === '1' && data.pois && data.pois.length > 0) {
-                allResults = allResults.concat(data.pois);
-                
-                // 检查是否还有更多结果
-                const totalCount = parseInt(data.count);
-                hasMoreResults = allResults.length < totalCount && data.pois.length === 50;
-                currentPage++;
-            } else {
-                hasMoreResults = false;
-            }
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const data = await response.json();
+        console.log('API 响应数据:', data);
 
-        if (allResults.length > 0) {
-            console.log('找到地点:', allResults);
-            totalResults = allResults.length;
-            
-            // 计算当前页的结果
-            const startIndex = (page - 1) * currentPageSize;
-            const endIndex = startIndex + currentPageSize;
-            const pageResults = allResults.slice(startIndex, endIndex);
-            
-            currentPage = page;
-            displayResults(pageResults);
-            displayPagination();
+        if (data.status === '1') {
+            if (data.pois && data.pois.length > 0) {
+                console.log('找到地点:', data.pois);
+                totalResults = parseInt(data.count);
+                displayResults(data.pois);
+                displayPagination();
+            } else {
+                console.log('API 返回空结果');
+                resultsDiv.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-title">未找到符合条件的地点</div>
+                        <div class="no-results-text">
+                            很抱歉，我们没有找到符合您搜索条件的地点。
+                        </div>
+                        <div class="no-results-suggestions">
+                            <strong>您可以尝试：</strong>
+                            <ul>
+                                <li>检查输入的地区名称是否正确</li>
+                                <li>尝试使用不同的地址类型</li>
+                                <li>扩大搜索范围</li>
+                                <li>使用更通用的关键词</li>
+                            </ul>
+                        </div>
+                    </div>`;
+            }
         } else {
-            console.error('搜索失败: 未找到结果');
-            resultsDiv.innerHTML = `
-                <div class="no-results">
-                    <div class="no-results-title">未找到符合条件的地点</div>
-                    <div class="no-results-text">
-                        很抱歉，我们没有找到符合您搜索条件的地点。
-                    </div>
-                    <div class="no-results-suggestions">
-                        <strong>您可以尝试：</strong>
-                        <ul>
-                            <li>检查输入的地区名称是否正确</li>
-                            <li>尝试使用不同的地址类型</li>
-                            <li>扩大搜索范围</li>
-                            <li>使用更通用的关键词</li>
-                        </ul>
-                    </div>
-                </div>`;
+            console.error('API 返回错误:', data.info);
+            if (data.infocode === '10003' || data.info.includes('OVER_LIMIT')) {
+                resultsDiv.innerHTML = `
+                    <div class="api-limit-error">
+                        <div class="error-icon">⚠️</div>
+                        <div class="error-title">搜索次数已达到今日限制</div>
+                        <div class="error-message">
+                            抱歉，由于使用人数较多，当前搜索服务已达到今日使用限制。
+                        </div>
+                        <div class="error-suggestions">
+                            <ul>
+                                <li>您可以稍后再试</li>
+                                <li>或者等到明天再来使用</li>
+                                <li>建议在使用高峰期避开整点时间</li>
+                            </ul>
+                        </div>
+                        <div class="error-actions">
+                            <button onclick="searchRestaurants(1)" class="retry-button">
+                                <i class="fas fa-redo"></i> 重新尝试
+                            </button>
+                            <button onclick="window.location.reload()" class="refresh-button">
+                                <i class="fas fa-sync"></i> 刷新页面
+                            </button>
+                        </div>
+                    </div>`;
+            } else {
+                throw new Error(data.info || '搜索失败');
+            }
         }
 
         if (searchButton) {
@@ -313,12 +323,18 @@ async function searchRestaurants(page = 1) {
             searchButton.textContent = '搜索';
         }
     } catch (error) {
+        console.error('搜索请求失败:', error);
         if (searchButton) {
             searchButton.disabled = false;
             searchButton.textContent = '搜索';
         }
-        console.error('请求失败:', error);
-        resultsDiv.innerHTML = '<div class="error">搜索失败，请稍后重试。错误信息：' + error.message + '</div>';
+        resultsDiv.innerHTML = `
+            <div class="error">
+                <div style="margin-bottom: 10px;">搜索失败: ${error.message}</div>
+                <button onclick="searchRestaurants(1)" class="retry-button">
+                    重新搜索
+                </button>
+            </div>`;
     }
 }
 
