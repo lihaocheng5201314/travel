@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅游出行组件</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <h1>旅游出行组件</h1>
+            <div class="clock-container">
+                <div class="clock-widget">
+                    <div class="time-display">
+                        <i class="fas fa-clock"></i>
+                        <span id="currentTime">--:--:--</span>
+                    </div>
+                    <div class="date-display">
+                        <span id="currentDate">---- 年 -- 月 -- 日</span>
+                        <span id="currentWeek">星期-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加天气查询区域 -->
+        <div class="weather-search-container">
+            <div class="weather-search-box">
+                <input type="text" id="weatherCity" placeholder="输入城市名称查询天气">
+                <button id="weatherSearchBtn">查询天气</button>
+            </div>
+            <div id="weatherResult" class="weather-result"></div>
+        </div>
+
+        <div class="search-box">
+            <div class="location-search">
+                <input type="text" id="location" placeholder="输入地区">
+                <div class="type-input-container">
+                    <select id="locationType" class="type-select">
+                        <option value="">选择类型</option>
+                        <option value="餐厅">餐厅</option>
+                        <option value="景点">景点</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                    <input type="text" id="customType" class="custom-type-input" placeholder="输入自定义类型" style="display: none;">
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <button onclick="searchRestaurants()">搜索</button>
+        </div>
+
+        <div id="results" class="results">
+            <!-- 结果将在这里动态显示 -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
