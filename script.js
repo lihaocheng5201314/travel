@@ -9,9 +9,23 @@ let totalResults = 0;
 
 // 添加天气搜索函数
 async function searchWeather() {
+    const weatherSearchBtn = document.getElementById('weatherSearchBtn');
+    if (weatherSearchBtn) {
+        weatherSearchBtn.disabled = true;
+        weatherSearchBtn.style.opacity = '0.6';
+        weatherSearchBtn.style.cursor = 'not-allowed';
+        weatherSearchBtn.textContent = '查询中...';
+    }
+
     const cityInput = document.getElementById('weatherCity');
     if (!cityInput || !cityInput.value.trim()) {
         alert('请输入要查询天气的城市');
+        if (weatherSearchBtn) {
+            weatherSearchBtn.disabled = false;
+            weatherSearchBtn.style.opacity = '1';
+            weatherSearchBtn.style.cursor = 'pointer';
+            weatherSearchBtn.textContent = '查询天气';
+        }
         return;
     }
 
@@ -100,6 +114,14 @@ async function searchWeather() {
                 </button>
             </div>
         `;
+    } finally {
+        // 无论成功还是失败，都要恢复按钮状态
+        if (weatherSearchBtn) {
+            weatherSearchBtn.disabled = false;
+            weatherSearchBtn.style.opacity = '1';
+            weatherSearchBtn.style.cursor = 'pointer';
+            weatherSearchBtn.textContent = '查询天气';
+        }
     }
 }
 

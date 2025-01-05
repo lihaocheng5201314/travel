@@ -1546,4 +1546,18 @@ button:disabled {
         width: 100%;
         justify-content: center;
     }
+}
+
+.weather-search-box button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.6;
+    box-shadow: none;
+}
+
+.weather-search-box button:disabled:hover {
+    background: #cccccc;
+    transform: none;
+    box-shadow: none;
 } 
