@@ -1560,4 +1560,128 @@ button:disabled {
     background: #cccccc;
     transform: none;
     box-shadow: none;
+}
+
+/* 天气预报切换按钮样式 */
+.weather-forecast-toggle {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.forecast-toggle-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.forecast-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.toggle-icon {
+    font-size: 20px;
+}
+
+/* 天气预报列表样式 */
+.weather-forecast {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 20px;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+}
+
+.forecast-list {
+    display: grid;
+    gap: 20px;
+}
+
+.weather-day {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    display: grid;
+    gap: 15px;
+}
+
+.forecast-date {
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.forecast-date .date {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.forecast-date .week {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.day-weather,
+.night-weather {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.weather-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.weather-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.weather-details .weather-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.weather-details .label {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.weather-details .value {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .weather-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .forecast-toggle-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    .toggle-icon {
+        font-size: 18px;
+    }
 } 

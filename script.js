@@ -7,6 +7,72 @@ const PAGE_SIZES = [20, 50, 100];
 let currentPageSize = 50;
 let totalResults = 0;
 
+// 添加天气数据缓存
+const weatherCache = {
+    data: new Map(),
+    timeout: 5 * 60 * 1000, // 5分钟缓存
+    
+    set(city, data) {
+        this.data.set(city, {
+            timestamp: Date.now(),
+            data: data
+        });
+    },
+    
+    get(city) {
+        const cached = this.data.get(city);
+        if (!cached) return null;
+        
+        // 检查缓存是否过期
+        if (Date.now() - cached.timestamp > this.timeout) {
+            this.data.delete(city);
+            return null;
+        }
+        
+        return cached.data;
+    },
+    
+    clear() {
+        this.data.clear();
+    }
+};
+
+// 添加重试函数
+async function fetchWithRetry(url, options, maxRetries = 2, timeout = 8000) {
+    let lastError;
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal,
+                cache: 'default' // 使用浏览器缓存
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            lastError = error;
+            console.warn(`第 ${i + 1} 次请求失败:`, error.message);
+            
+            if (i < maxRetries - 1) {
+                // 使用更短的重试延迟
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
 // 添加天气搜索函数
 async function searchWeather() {
     const weatherSearchBtn = document.getElementById('weatherSearchBtn');
@@ -36,51 +102,113 @@ async function searchWeather() {
     try {
         const weatherInfo = await getWeatherInfo(city);
         if (weatherInfo) {
-            const tempDesc = getTemperatureDescription(weatherInfo.temperature);
+            const tempDesc = getTemperatureDescription(weatherInfo.current.temperature);
             weatherResultDiv.innerHTML = `
                 <div class="weather-info">
-                    <div class="weather-info-header">
-                        <div>
-                            <div class="weather-info-location">
-                                ${weatherInfo.city || city}
+                    <div class="current-weather">
+                        <div class="weather-info-header">
+                            <div>
+                                <div class="weather-info-location">
+                                    ${weatherInfo.current.city || city}
+                                </div>
+                                <div class="weather-info-time">
+                                    发布时间：${weatherInfo.current.reporttime || '-'}
+                                </div>
                             </div>
-                            <div class="weather-info-time">
-                                发布时间：${weatherInfo.reporttime || '-'}
+                            <div class="weather-info-temperature">
+                                <div class="temp-number">温度 ${weatherInfo.current.temperature || '-'}度</div>
+                                <div class="temp-desc">${tempDesc}</div>
                             </div>
                         </div>
-                        <div class="weather-info-temperature">
-                            <div class="temp-number">温度 ${weatherInfo.temperature || '-'}度</div>
-                            <div class="temp-desc">${tempDesc}</div>
+                        <div class="weather-info-main">
+                            <div class="weather-info-item">
+                                <span class="weather-icon">🌤️</span>
+                                <div>
+                                    <div class="label">天气状况</div>
+                                    <div class="value">${weatherInfo.current.weather || '-'}</div>
+                                </div>
+                            </div>
+                            <div class="weather-info-item">
+                                <span class="weather-icon">💨</span>
+                                <div>
+                                    <div class="label">风向</div>
+                                    <div class="value">${weatherInfo.current.winddirection || '-'}</div>
+                                </div>
+                            </div>
+                            <div class="weather-info-item">
+                                <span class="weather-icon">🌪️</span>
+                                <div>
+                                    <div class="label">风力</div>
+                                    <div class="value">${weatherInfo.current.windpower || '-'}级</div>
+                                </div>
+                            </div>
+                            <div class="weather-info-item">
+                                <span class="weather-icon">💧</span>
+                                <div>
+                                    <div class="label">空气湿度</div>
+                                    <div class="value">${weatherInfo.current.humidity || '-'}%</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="weather-info-main">
-                        <div class="weather-info-item">
-                            <span class="weather-icon">🌤️</span>
-                            <div>
-                                <div class="label">天气状况</div>
-                                <div class="value">${weatherInfo.weather || '-'}</div>
-                            </div>
-                        </div>
-                        <div class="weather-info-item">
-                            <span class="weather-icon">💨</span>
-                            <div>
-                                <div class="label">风向</div>
-                                <div class="value">${weatherInfo.winddirection || '-'}</div>
-                            </div>
-                        </div>
-                        <div class="weather-info-item">
-                            <span class="weather-icon">🌪️</span>
-                            <div>
-                                <div class="label">风力</div>
-                                <div class="value">${weatherInfo.windpower || '-'}级</div>
-                            </div>
-                        </div>
-                        <div class="weather-info-item">
-                            <span class="weather-icon">💧</span>
-                            <div>
-                                <div class="label">空气湿度</div>
-                                <div class="value">${weatherInfo.humidity || '-'}%</div>
-                            </div>
+                    <div class="weather-forecast-toggle">
+                        <button onclick="toggleForecast()" class="forecast-toggle-btn">
+                            <span class="toggle-icon">📅</span>
+                            查看未来天气预报
+                        </button>
+                    </div>
+                    <div class="weather-forecast" style="display: none;">
+                        <div class="forecast-list">
+                            ${weatherInfo.forecast.casts ? weatherInfo.forecast.casts.map(cast => `
+                                <div class="weather-day">
+                                    <div class="forecast-date">
+                                        <div class="date">${cast.date}</div>
+                                        <div class="week">星期${cast.week}</div>
+                                    </div>
+                                    <div class="day-weather">
+                                        <div class="weather-title">白天天气</div>
+                                        <div class="weather-details">
+                                            <div class="weather-item">
+                                                <span class="label">天气现象</span>
+                                                <span class="value">${cast.dayweather}</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">温度</span>
+                                                <span class="value">${cast.daytemp}°C</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">风向</span>
+                                                <span class="value">${cast.daywind}</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">风力</span>
+                                                <span class="value">${cast.daypower}级</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="night-weather">
+                                        <div class="weather-title">夜间天气</div>
+                                        <div class="weather-details">
+                                            <div class="weather-item">
+                                                <span class="label">天气现象</span>
+                                                <span class="value">${cast.nightweather}</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">温度</span>
+                                                <span class="value">${cast.nighttemp}°C</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">风向</span>
+                                                <span class="value">${cast.nightwind}</span>
+                                            </div>
+                                            <div class="weather-item">
+                                                <span class="label">风力</span>
+                                                <span class="value">${cast.nightpower}级</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('') : '<div class="error">暂无预报数据</div>'}
                         </div>
                     </div>
                 </div>
@@ -91,31 +219,87 @@ async function searchWeather() {
     } catch (error) {
         console.error('天气查询失败:', error);
         let errorMessage = '网络连接失败，请检查网络后重试';
+        let errorIcon = '🌐';
+        let errorTitle = '网络错误';
+        let errorSuggestions = [];
         
         if (error.message.includes('Failed to fetch')) {
             errorMessage = '网络连接失败，请检查网络后重试';
+            errorIcon = '🌐';
+            errorTitle = '网络连接错误';
+            errorSuggestions = [
+                '检查您的网络连接是否正常',
+                '确保您已连接到互联网',
+                '尝试刷新页面后重试'
+            ];
         } else if (error.message.includes('timeout')) {
-            errorMessage = '请求超时，请稍后重试';
+            errorMessage = '服务响应超时，请稍后重试';
+            errorIcon = '⏱️';
+            errorTitle = '请求超时';
+            errorSuggestions = [
+                '当前服务器响应较慢，请稍后再试',
+                '您可以尝试重新查询',
+                '如果问题持续存在，可能是网络不稳定'
+            ];
         } else if (error.message.includes('Network Error')) {
             errorMessage = '网络错误，请检查网络连接';
+            errorIcon = '📡';
+            errorTitle = '网络错误';
+            errorSuggestions = [
+                '检查网络连接状态',
+                '尝试切换网络后重试',
+                '确保没有网络限制'
+            ];
         } else if (error.response && error.response.status === 404) {
             errorMessage = '未找到该城市的天气信息';
+            errorIcon = '🏙️';
+            errorTitle = '城市未找到';
+            errorSuggestions = [
+                '检查城市名称是否正确',
+                '尝试使用其他城市名称',
+                '确保输入的是有效的城市名'
+            ];
         } else if (error.response && error.response.status === 401) {
             errorMessage = '天气服务授权失败，请联系管理员';
+            errorIcon = '🔑';
+            errorTitle = '授权错误';
+            errorSuggestions = [
+                '请联系管理员处理授权问题',
+                '稍后再试',
+                '检查服务是否正常'
+            ];
         } else {
             errorMessage = '天气查询失败，请稍后重试';
+            errorIcon = '❌';
+            errorTitle = '查询失败';
+            errorSuggestions = [
+                '稍后重新尝试查询',
+                '检查输入是否正确',
+                '如果问题持续存在，请联系支持'
+            ];
         }
         
         weatherResultDiv.innerHTML = `
-            <div class="error">
-                <div style="margin-bottom: 10px;">${errorMessage}</div>
-                <button onclick="searchWeather()" class="retry-button">
-                    重新查询
-                </button>
+            <div class="api-limit-error">
+                <div class="error-icon">${errorIcon}</div>
+                <div class="error-title">${errorTitle}</div>
+                <div class="error-message">${errorMessage}</div>
+                <div class="error-suggestions">
+                    <ul>
+                        ${errorSuggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="error-actions">
+                    <button onclick="searchWeather()" class="retry-button">
+                        <i class="fas fa-redo"></i> 重新查询
+                    </button>
+                    <button onclick="window.location.reload()" class="refresh-button">
+                        <i class="fas fa-sync"></i> 刷新页面
+                    </button>
+                </div>
             </div>
         `;
     } finally {
-        // 无论成功还是失败，都要恢复按钮状态
         if (weatherSearchBtn) {
             weatherSearchBtn.disabled = false;
             weatherSearchBtn.style.opacity = '1';
@@ -143,46 +327,58 @@ function initPage() {
 function getWeatherInfo(city) {
     return new Promise(async (resolve, reject) => {
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-                controller.abort();
-                reject(new Error('timeout'));
-            }, 10000); // 10秒超时
+            // 检查缓存
+            const cachedData = weatherCache.get(city);
+            if (cachedData) {
+                console.log('使用缓存的天气数据');
+                return resolve(cachedData);
+            }
 
-            // 构建天气查询 API URL
-            const apiUrl = new URL('https://restapi.amap.com/v3/weather/weatherInfo');
+            // 构建请求URL
+            const weatherUrl = new URL('https://restapi.amap.com/v3/weather/weatherInfo');
             const params = {
                 city: city,
                 key: '56b3fdd0d5f18689db37ec9630c9d40f',
-                extensions: 'base'
+                extensions: 'all', // 直接请求包含预报的数据
+                output: 'JSON'  // 明确指定返回格式
             };
             
             Object.keys(params).forEach(key => 
-                apiUrl.searchParams.append(key, params[key])
+                weatherUrl.searchParams.append(key, params[key])
             );
 
-            const response = await fetch(apiUrl, {
-                signal: controller.signal,
+            // 使用优化后的fetchWithRetry
+            const weatherData = await fetchWithRetry(weatherUrl.toString(), {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'gzip'  // 启用压缩
                 }
-            });
+            }, 2, 8000); // 减少重试次数和超时时间
 
-            clearTimeout(timeoutId);
+            if (weatherData.status === '1' && weatherData.forecasts && weatherData.forecasts.length > 0) {
+                // 获取当前天气（第一天预报的数据）
+                const currentWeather = {
+                    city: weatherData.forecasts[0].city,
+                    reporttime: weatherData.forecasts[0].reporttime,
+                    temperature: weatherData.forecasts[0].casts[0].daytemp,
+                    weather: weatherData.forecasts[0].casts[0].dayweather,
+                    winddirection: weatherData.forecasts[0].casts[0].daywind,
+                    windpower: weatherData.forecasts[0].casts[0].daypower,
+                    humidity: '暂无' // 高德天气API的all类型数据中没有湿度信息
+                };
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.status === '1' && data.lives && data.lives.length > 0) {
-                console.log('获取天气信息成功:', data.lives[0]);
-                resolve(data.lives[0]);
+                const result = {
+                    current: currentWeather,
+                    forecast: weatherData.forecasts[0]
+                };
+
+                // 存入缓存
+                weatherCache.set(city, result);
+                
+                resolve(result);
             } else {
-                console.error('天气查询失败:', data);
-                reject(new Error(data.info || '获取天气信息失败'));
+                throw new Error(weatherData.info || '获取天气信息失败');
             }
         } catch (error) {
             console.error('天气查询请求失败:', error);
@@ -765,4 +961,17 @@ function getTemperatureDescription(temp) {
     if (temperature <= 28) return '温暖';
     if (temperature <= 35) return '炎热';
     return '酷热';
+}
+
+// 添加切换预报显示的函数
+function toggleForecast() {
+    const forecastDiv = document.querySelector('.weather-forecast');
+    const toggleBtn = document.querySelector('.forecast-toggle-btn');
+    if (forecastDiv.style.display === 'none') {
+        forecastDiv.style.display = 'block';
+        toggleBtn.innerHTML = '<span class="toggle-icon">📅</span> 收起天气预报';
+    } else {
+        forecastDiv.style.display = 'none';
+        toggleBtn.innerHTML = '<span class="toggle-icon">📅</span> 查看未来天气预报';
+    }
 } 
